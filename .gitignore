@@ -1,4 +1,4 @@
-# Platformio 
+# Platformio
 .pioenvs
 .piolibdeps
 
@@ -34,3 +34,5 @@
 *.exe
 *.out
 *.app
+.clang_complete
+.gcc-flags.json
