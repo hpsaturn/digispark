@@ -2,6 +2,14 @@
 #include "DigiKeyboard.h"
 #include <avr/boot.h>
 
+#include <TinyWireM.h>
+#include "TinyRTClib.h"
+
+RTC_Millis RTC;
+
+
+int blinkPin = 1;
+
 byte read_factory_calibration(void) {
   byte SIGRD = 5; // for some reason this isn't defined...
   byte value = boot_signature_byte_get(1);
@@ -12,9 +20,7 @@ boolean is_clock_calibrated(void) {
   return read_factory_calibration() != OSCCAL;
 }
 
-int blinkPin = 1;
-void setup()
-{
+void setup() {
   pinMode(blinkPin, OUTPUT);
   digitalWrite(blinkPin, HIGH);
   DigiKeyboard.delay(500);
@@ -26,7 +32,12 @@ void setup()
   DigiKeyboard.delay(100);
   char output [10];
   sprintf(output,"%s",is_clock_calibrated() ? "true":"false");
-  DigiKeyboard.print(output);
+  DigiKeyboard.println(output);
+  DigiKeyboard.delay(100);
+  RTC.begin(DateTime(__DATE__, __TIME__));
+  delay(100);
+  DateTime now = RTC.now();
+  DigiKeyboard.print(now.year(), DEC);
   DigiKeyboard.delay(100);
   // DigiKeyboard.sendKeyStroke(KEY_ENTER);
   // DigiKeyboard.delay(1000);
