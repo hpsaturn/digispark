@@ -15,6 +15,7 @@
 
 
 #include <Adafruit_NeoPixel.h>
+#include <Button2.h>
 
 #define PIN         0      // Ring Led input
 #define RNDPIN      2      // for random generator
@@ -25,6 +26,10 @@
 #define DELAY       1000
 #define WRAP        1     // wrap color wave
 
+#define BUTTON_A_PIN  3   // multi mode button
+
+Button2 buttonA = Button2(BUTTON_A_PIN);
+
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 // we have 3 color spots (reg, green, blue) oscillating along the strip with different speeds
@@ -34,6 +39,19 @@ float offset;
 // the real exponent function is too slow, so I created an approximation (only for x < 0)
 float myexp(float x) {
   return (1.0/(1.0-(0.634-1.344*x)*x));
+}
+
+void handler(Button2& btn) {
+    switch (btn.getClickType()) {
+        case SINGLE_CLICK:
+            break;
+        case DOUBLE_CLICK:
+            break;
+        case TRIPLE_CLICK:
+            break;
+        case LONG_CLICK:
+            break;
+    }
 }
 
 void setup() {
@@ -51,6 +69,12 @@ void setup() {
   // initialize LED strip
   strip.begin();
   strip.show();
+
+  // initialize Button
+  buttonA.setClickHandler(handler);
+  buttonA.setLongClickHandler(handler);
+  buttonA.setDoubleClickHandler(handler);
+  buttonA.setTripleClickHandler(handler);
 }
 
 void animRingLoop() {
@@ -100,6 +124,7 @@ void reboot(void) {
 }
 
 void loop() {
+  buttonA.loop();
   animRingLoop();
   strip.show();
 }
