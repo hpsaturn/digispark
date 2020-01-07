@@ -16,6 +16,7 @@
 
 #include <Adafruit_NeoPixel.h>
 #include <Button2.h>
+#include <avr/sleep.h>
 
 #define PIN         0      // Ring Led input
 #define RNDPIN      2      // for random generator
@@ -26,6 +27,8 @@
 #define DELAY       1000
 #define WRAP        1     // wrap color wave
 
+#define adc_disable() (ADCSRA &= ~(1<<ADEN)) // disable ADC (before power-off)
+
 #define BUTTON_A_PIN  3   // multi mode button
 
 Button2 buttonA = Button2(BUTTON_A_PIN);
@@ -35,6 +38,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800
 // we have 3 color spots (reg, green, blue) oscillating along the strip with different speeds
 float spdr, spdg, spdb;
 float offset;
+double sleepcycle = 0;
 
 // the real exponent function is too slow, so I created an approximation (only for x < 0)
 float myexp(float x) {
@@ -44,10 +48,6 @@ float myexp(float x) {
 void handler(Button2& btn) {
     switch (btn.getClickType()) {
         case SINGLE_CLICK:
-            break;
-        case DOUBLE_CLICK:
-            break;
-        case TRIPLE_CLICK:
             break;
         case LONG_CLICK:
             break;
@@ -73,8 +73,9 @@ void setup() {
   // initialize Button
   buttonA.setClickHandler(handler);
   buttonA.setLongClickHandler(handler);
-  buttonA.setDoubleClickHandler(handler);
-  buttonA.setTripleClickHandler(handler);
+  
+  adc_disable(); // ADC uses ~320uA
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
 void animRingLoop() {
@@ -114,13 +115,9 @@ void animRingLoop() {
   }
 }
 
-void reboot(void) {
-  noInterrupts(); // disable interrupts which could mess with changing prescaler
-  CLKPR = 0b10000000; // enable prescaler speed change
-  CLKPR = 0; // set prescaler to default (16mhz) mode required by bootloader
-  void (*ptrToFunction)(); // allocate a function pointer
-  ptrToFunction = 0x0000; // set function pointer to bootloader reset vector
-  (*ptrToFunction)(); // jump to reset, which bounces in to bootloader
+void enterSleep (void) {
+  sleep_enable();
+  sleep_cpu();
 }
 
 void loop() {
