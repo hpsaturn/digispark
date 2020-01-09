@@ -17,23 +17,19 @@
 #include <Adafruit_NeoPixel.h>
 #include <Button2.h>
 #include <avr/sleep.h>
+#include <avr/interrupt.h>
 
-#define PIN         0      // Ring Led input
 #define RNDPIN      5      // for random generator
-#define NUMPIXELS   12    
 
-#define BRIGHTNESS  40
 #define FOCUS       20
 #define DELAY       1000
 #define WRAP        1     // wrap color wave
 
-#define adc_disable() (ADCSRA &= ~(1<<ADEN)) // disable ADC (before power-off)
-
-#define BUTTON_A_PIN  2   // multi mode button
-
-Button2 buttonA = Button2(BUTTON_A_PIN);
-
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+int pin = 0;                             // Ring Led input
+int numPixels = 12; 
+int brightness = 40;
+int pixelFormat = NEO_GRB + NEO_KHZ800;
+Adafruit_NeoPixel *strip;
 
 // we have 3 color spots (reg, green, blue) oscillating along the strip with different speeds
 float spdr, spdg, spdb;
@@ -45,12 +41,16 @@ float myexp(float x) {
   return (1.0/(1.0-(0.634-1.344*x)*x));
 }
 
+#define BUTTON_A_PIN  2   // multi mode button
+Button2 *buttonA;
 bool toggle;
+bool onSuspend;
 
 void handler(Button2& btn) {
     switch (btn.getClickType()) {
         case SINGLE_CLICK:
-            toggle=!toggle;
+            if(!onSuspend)toggle=!toggle;
+            else onSuspend=false;
             break;
         case LONG_CLICK:
             break;
@@ -70,14 +70,16 @@ void setup() {
   offset = random(10000) / 100.0;
 
   // initialize LED strip
-  strip.begin();
-  strip.show();
+  strip = new Adafruit_NeoPixel(numPixels, pin, pixelFormat);
+  strip->begin();
+  strip->show();
 
   // initialize Button
-  buttonA.setClickHandler(handler);
-  buttonA.setLongClickHandler(handler);
+  buttonA = new Button2(BUTTON_A_PIN);
+  buttonA->setClickHandler(handler);
+  buttonA->setLongClickHandler(handler);
   
-  adc_disable(); // ADC uses ~320uA
+  ADCSRA &= ~(1<<ADEN); // Disable ADC, it uses ~320uA
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
@@ -95,9 +97,9 @@ void animRingLoop() {
   float posb = 0.85 + 0.75*sin(m*spdb);
 
   // now iterate over each pixel and calculate it's color
-  for (int i=0; i<NUMPIXELS; i++) {
+  for (int i=0; i<numPixels; i++) {
     // pixel position on a scale from 0.0 to 1.0
-    float ppos = (float)i / NUMPIXELS;
+    float ppos = (float)i / numPixels;
  
     // distance from this pixel to the center of each color spot
     float dr = ppos-posr;
@@ -110,22 +112,45 @@ void animRingLoop() {
 #endif
 
     // set each color component from 0 to max BRIGHTNESS, according to Gaussian distribution
-    strip.setPixelColor(i,
-      constrain(BRIGHTNESS*myexp(-FOCUS*dr*dr),0,BRIGHTNESS),
-      constrain(BRIGHTNESS*myexp(-FOCUS*dg*dg),0,BRIGHTNESS),
-      constrain(BRIGHTNESS*myexp(-FOCUS*db*db),0,BRIGHTNESS)
+    strip->setPixelColor(i,
+      constrain(brightness*myexp(-FOCUS*dr*dr),0,brightness),
+      constrain(brightness*myexp(-FOCUS*dg*dg),0,brightness),
+      constrain(brightness*myexp(-FOCUS*db*db),0,brightness)
       );
   }
 }
 
-void enterSleep (void) {
-  sleep_enable();
-  sleep_cpu();
-}
+void sleep() {
+    onSuspend=true;
+    GIMSK |= _BV(PCIE);                     // Enable Pin Change Interrupts
+    PCMSK |= _BV(PCINT2);                   // Use PB3 as interrupt pin
+    ADCSRA &= ~_BV(ADEN);                   // ADC off
+
+    sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
+    sei();                                  // Enable interrupts
+    sleep_cpu();                            // sleep
+
+    cli();                                  // Disable interrupts
+    PCMSK &= ~_BV(PCINT2);                  // Turn off PB3 as interrupt pin
+    sleep_disable();                        // Clear SE bit
+    ADCSRA |= _BV(ADEN);                    // ADC on
+
+    sei();                                  // Enable interrupts
+} // sleep
+
+ISR(PCINT0_vect) { }                        // This is called when the interrupt occurs, but I don't need to do anything in it
 
 void loop() {
-  buttonA.loop();
-  if(toggle) animRingLoop();
-  else strip.clear();
-  strip.show();
+  
+  buttonA->loop();
+  
+  if (toggle) {
+    strip->clear();
+    strip->show();
+    toggle=false;
+    sleep();
+  }
+  else animRingLoop();
+  
+  strip->show();
 }
