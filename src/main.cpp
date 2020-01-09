@@ -19,7 +19,7 @@
 #include <avr/sleep.h>
 
 #define PIN         0      // Ring Led input
-#define RNDPIN      2      // for random generator
+#define RNDPIN      5      // for random generator
 #define NUMPIXELS   12    
 
 #define BRIGHTNESS  40
@@ -29,7 +29,7 @@
 
 #define adc_disable() (ADCSRA &= ~(1<<ADEN)) // disable ADC (before power-off)
 
-#define BUTTON_A_PIN  3   // multi mode button
+#define BUTTON_A_PIN  2   // multi mode button
 
 Button2 buttonA = Button2(BUTTON_A_PIN);
 
@@ -45,9 +45,12 @@ float myexp(float x) {
   return (1.0/(1.0-(0.634-1.344*x)*x));
 }
 
+bool toggle;
+
 void handler(Button2& btn) {
     switch (btn.getClickType()) {
         case SINGLE_CLICK:
+            toggle=!toggle;
             break;
         case LONG_CLICK:
             break;
@@ -122,6 +125,7 @@ void enterSleep (void) {
 
 void loop() {
   buttonA.loop();
-  animRingLoop();
+  if(toggle) animRingLoop();
+  else strip.clear();
   strip.show();
 }
