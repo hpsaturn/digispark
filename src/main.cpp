@@ -49,8 +49,8 @@ bool onSuspend;
 void handler(Button2& btn) {
     switch (btn.getClickType()) {
         case SINGLE_CLICK:
-            if(!onSuspend)toggle=!toggle;
-            else onSuspend=false;
+            if(!onSuspend)toggle=!toggle;     // turn on/off suspend
+            else onSuspend=false;             // fix button delay after suspend
             break;
         case LONG_CLICK:
             break;
@@ -79,7 +79,7 @@ void setup() {
   buttonA->setClickHandler(handler);
   buttonA->setLongClickHandler(handler);
   
-  ADCSRA &= ~(1<<ADEN); // Disable ADC, it uses ~320uA
+  ADCSRA &= ~_BV(ADEN); // Disable ADC, it uses ~320uA
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
@@ -116,25 +116,20 @@ void animRingLoop() {
       constrain(brightness*myexp(-FOCUS*dr*dr),0,brightness),
       constrain(brightness*myexp(-FOCUS*dg*dg),0,brightness),
       constrain(brightness*myexp(-FOCUS*db*db),0,brightness)
-      );
+    );
   }
 }
 
 void sleep() {
     onSuspend=true;
     GIMSK |= _BV(PCIE);                     // Enable Pin Change Interrupts
-    PCMSK |= _BV(PCINT2);                   // Use PB3 as interrupt pin
-    ADCSRA &= ~_BV(ADEN);                   // ADC off
-
+    PCMSK |= _BV(PCINT2);                   // Use PB2 as interrupt pin
     sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
     sei();                                  // Enable interrupts
     sleep_cpu();                            // sleep
-
     cli();                                  // Disable interrupts
-    PCMSK &= ~_BV(PCINT2);                  // Turn off PB3 as interrupt pin
+    PCMSK &= ~_BV(PCINT2);                  // Turn off PB2 as interrupt pin
     sleep_disable();                        // Clear SE bit
-    ADCSRA |= _BV(ADEN);                    // ADC on
-
     sei();                                  // Enable interrupts
 } // sleep
 
