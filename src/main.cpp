@@ -34,7 +34,8 @@ Adafruit_NeoPixel *strip;
 // we have 3 color spots (reg, green, blue) oscillating along the strip with different speeds
 float spdr, spdg, spdb;
 float offset;
-double sleepcycle = 0;
+int animduration = 1100; // loop time 1100 ~= 10s 
+int animticks = 0;
 
 // the real exponent function is too slow, so I created an approximation (only for x < 0)
 float myexp(float x) {
@@ -46,15 +47,9 @@ Button2 *buttonA;
 bool toggle;
 bool onSuspend;
 
-void handler(Button2& btn) {
-    switch (btn.getClickType()) {
-        case SINGLE_CLICK:
-            if(!onSuspend)toggle=!toggle;     // turn on/off suspend
-            else onSuspend=false;             // fix button delay after suspend
-            break;
-        case LONG_CLICK:
-            break;
-    }
+void OnClickHandler(Button2& btn) {
+  if(!onSuspend)toggle=!toggle;     // turn on/off suspend
+  else onSuspend=false;             // fix button delay after suspend
 }
 
 void setup() {
@@ -76,8 +71,7 @@ void setup() {
 
   // initialize Button
   buttonA = new Button2(BUTTON_A_PIN);
-  buttonA->setClickHandler(handler);
-  buttonA->setLongClickHandler(handler);
+  buttonA->setClickHandler(OnClickHandler);
   
   ADCSRA &= ~_BV(ADEN); // Disable ADC, it uses ~320uA
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -120,32 +114,34 @@ void animRingLoop() {
   }
 }
 
-void sleep() {
-    onSuspend=true;
-    GIMSK |= _BV(PCIE);                     // Enable Pin Change Interrupts
-    PCMSK |= _BV(PCINT2);                   // Use PB2 as interrupt pin
-    sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
-    sei();                                  // Enable interrupts
-    sleep_cpu();                            // sleep
-    cli();                                  // Disable interrupts
-    PCMSK &= ~_BV(PCINT2);                  // Turn off PB2 as interrupt pin
-    sleep_disable();                        // Clear SE bit
-    sei();                                  // Enable interrupts
-} // sleep
+void clear() {
+  strip->clear();
+  strip->show();
+}
 
-ISR(PCINT0_vect) { }                        // This is called when the interrupt occurs, but I don't need to do anything in it
+void sleep() {
+  clear();               // clear ring
+  toggle = false;        // ever restore it on sleep
+  onSuspend = true;      // prevent button delay issue
+  animticks = 0;         // reset anim time counter
+
+  GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
+  PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
+  sleep_enable();        // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
+  sei();                 // Enable interrupts
+  sleep_cpu();           // sleep
+  cli();                 // Disable interrupts
+  PCMSK &= ~_BV(PCINT2); // Turn off PB2 as interrupt pin
+  sleep_disable();       // Clear SE bit
+  sei();                 // Enable interrupts
+}
+
+ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don't need to do anything in it
 
 void loop() {
-  
   buttonA->loop();
-  
-  if (toggle) {
-    strip->clear();
-    strip->show();
-    toggle=false;
-    sleep();
-  }
-  else animRingLoop();
-  
+  if (toggle) sleep();
+  else if (animticks++<animduration) animRingLoop();
+  else sleep();
   strip->show();
 }
