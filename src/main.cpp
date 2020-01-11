@@ -18,6 +18,7 @@
 #include <Button2.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 
 #define RNDPIN      5      // for random generator
 
@@ -27,90 +28,63 @@
 
 int pin = 0;                             // Ring Led input
 int numPixels = 12; 
-int brightness = 40;
+int brightness = 20;
 int pixelFormat = NEO_GRB + NEO_KHZ800;
 Adafruit_NeoPixel *strip;
 
-// we have 3 color spots (reg, green, blue) oscillating along the strip with different speeds
-float spdr, spdg, spdb;
-float offset;
-int animduration = 1100; // loop time 1100 ~= 10s 
+int animduration = 13000; // loop time 13000 ~= 10s 
 int animticks = 0;
-
-// the real exponent function is too slow, so I created an approximation (only for x < 0)
-float myexp(float x) {
-  return (1.0/(1.0-(0.634-1.344*x)*x));
-}
+uint32_t color = 0;
 
 #define BUTTON_A_PIN  2   // multi mode button
 Button2 *buttonA;
 bool toggle;
 bool onSuspend;
 
+void loadRandomColor() {
+  color = strip->Color(random(brightness), random(brightness), random(brightness));
+  eeprom_write_dword(0,color);
+}
+
 void OnClickHandler(Button2& btn) {
-  if(!onSuspend)toggle=!toggle;     // turn on/off suspend
+  if(!onSuspend) toggle=!toggle;     // turn on/off suspend
   else onSuspend=false;             // fix button delay after suspend
+}
+
+void OnLongClickHandler(Button2& btn) {
+  loadRandomColor();
+  animticks = 0;
+}
+
+void OnDoubleClickHandler(Button2& btn) {
+  brightness = brightness + 10;
+  if (brightness > 60) brightness = 10;
+  strip->setBrightness(brightness);
+  strip->show();
 }
 
 void setup() {
   // initialize pseudo-random number generator with some random value
   randomSeed(analogRead(RNDPIN));
 
-  // assign random speed to each spot
-  spdr = 1.0 + random(200) / 100.0;
-  spdg = 1.0 + random(200) / 100.0;
-  spdb = 1.0 + random(200) / 100.0;
-
-  // set random offset so spots start in random locations
-  offset = random(10000) / 100.0;
-
   // initialize LED strip
   strip = new Adafruit_NeoPixel(numPixels, pin, pixelFormat);
   strip->begin();
   strip->show();
-
+  color=eeprom_read_dword(0);
   // initialize Button
   buttonA = new Button2(BUTTON_A_PIN);
   buttonA->setClickHandler(OnClickHandler);
+  buttonA->setLongClickHandler(OnLongClickHandler);
+  buttonA->setDoubleClickHandler(OnDoubleClickHandler);
   
   ADCSRA &= ~_BV(ADEN); // Disable ADC, it uses ~320uA
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
 void animRingLoop() {
-// use real time to recalculate position of each color spot
-  long ms = millis();
-  // scale time to float value
-  float m = offset + (float)ms/DELAY;
-  // add some non-linearity
-  m = m - 42.5*cos(m/552.0) - 6.5*cos(m/142.0);
-
-  // recalculate position of each spot (measured on a scale of 0 to 1)
-  float posr = 0.15 + 0.55*sin(m*spdr);
-  float posg = 0.5 + 0.65*sin(m*spdg);
-  float posb = 0.85 + 0.75*sin(m*spdb);
-
-  // now iterate over each pixel and calculate it's color
   for (int i=0; i<numPixels; i++) {
-    // pixel position on a scale from 0.0 to 1.0
-    float ppos = (float)i / numPixels;
- 
-    // distance from this pixel to the center of each color spot
-    float dr = ppos-posr;
-    float dg = ppos-posg;
-    float db = ppos-posb;
-#if WRAP
-    dr = dr - floor(dr + 0.5);
-    dg = dg - floor(dg + 0.5);
-    db = db - floor(db + 0.5);
-#endif
-
-    // set each color component from 0 to max BRIGHTNESS, according to Gaussian distribution
-    strip->setPixelColor(i,
-      constrain(brightness*myexp(-FOCUS*dr*dr),0,brightness),
-      constrain(brightness*myexp(-FOCUS*dg*dg),0,brightness),
-      constrain(brightness*myexp(-FOCUS*db*db),0,brightness)
-    );
+    strip->setPixelColor(i,color);
   }
 }
 
