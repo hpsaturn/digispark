@@ -20,6 +20,10 @@
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
 
+#define BODS 7                   //BOD Sleep bit in MCUCR
+#define BODSE 2                  //BOD Sleep enable bit in MCUCR
+uint8_t mcucr1, mcucr2;
+
 #define RNDPIN      5      // for random generator
 
 #define FOCUS       20
@@ -77,9 +81,6 @@ void setup() {
   buttonA->setClickHandler(OnClickHandler);
   buttonA->setLongClickHandler(OnLongClickHandler);
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
-  
-  ADCSRA &= ~_BV(ADEN); // Disable ADC, it uses ~320uA
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
 void animRingLoop() {
@@ -101,8 +102,17 @@ void sleep() {
 
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
+  ACSR |= _BV(ACD);      // Disable the analog comparator
+  ADCSRA &= ~_BV(ADEN);  // Disable ADC
+
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  cli();
   sleep_enable();        // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
   sei();                 // Enable interrupts
+  mcucr1 = MCUCR | _BV(BODS) | _BV(BODSE);  //turn off the brown-out detector
+  mcucr2 = mcucr1 & ~_BV(BODSE);
+  MCUCR = mcucr1;
+  MCUCR = mcucr2;
   sleep_cpu();           // sleep
   cli();                 // Disable interrupts
   PCMSK &= ~_BV(PCINT2); // Turn off PB2 as interrupt pin
