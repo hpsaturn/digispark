@@ -42,22 +42,40 @@ uint32_t color = 0;
 
 #define BUTTON_A_PIN  2   // multi mode button
 Button2 *buttonA;
-bool toggle;
 bool onSuspend;
+
+void sleep(void);
 
 void loadRandomColor() {
   color = strip->Color(random(brightness), random(brightness), random(brightness));
   eeprom_write_dword(0,color);
 }
 
+void animRingLoop() {
+  for (int i=0; i<numPixels; i++) {
+    strip->setPixelColor(i,color);
+  }
+}
+
+void colorWipe(int wait) {
+  for(int i=0; i<numPixels; i++) { // For each pixel in strip...
+    strip->setPixelColor(i, color);         //  Set pixel's color (in RAM)
+    strip->show();                          //  Update strip to match
+    delay(wait);                           //  Pause for a moment
+  }
+}
+
 void OnClickHandler(Button2& btn) {
-  if(!onSuspend) toggle=!toggle;     // turn on/off suspend
+  if(!onSuspend) {
+    loadRandomColor();
+    colorWipe(30);     // turn on/off suspend
+    animticks=0;
+  }
   else onSuspend=false;             // fix button delay after suspend
 }
 
 void OnLongClickHandler(Button2& btn) {
-  loadRandomColor();
-  animticks = 0;
+  sleep();
 }
 
 void OnDoubleClickHandler(Button2& btn) {
@@ -65,6 +83,7 @@ void OnDoubleClickHandler(Button2& btn) {
   if (brightness > 60) brightness = 10;
   strip->setBrightness(brightness);
   strip->show();
+  animticks=0;
 }
 
 void setup() {
@@ -83,12 +102,6 @@ void setup() {
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
 }
 
-void animRingLoop() {
-  for (int i=0; i<numPixels; i++) {
-    strip->setPixelColor(i,color);
-  }
-}
-
 void clear() {
   strip->clear();
   strip->show();
@@ -96,7 +109,6 @@ void clear() {
 
 void sleep() {
   clear();               // clear ring
-  toggle = false;        // ever restore it on sleep
   onSuspend = true;      // prevent button delay issue
   animticks = 0;         // reset anim time counter
 
@@ -124,8 +136,12 @@ ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don'
 
 void loop() {
   buttonA->loop();
-  if (toggle) sleep();
-  else if (animticks++<animduration) animRingLoop();
-  else sleep();
+  if(onSuspend){
+    colorWipe(30);
+    onSuspend=false;
+  }
+  if (animticks++>animduration) {
+    sleep();
+  }
   strip->show();
 }
