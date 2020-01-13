@@ -29,15 +29,24 @@ uint8_t mcucr1, mcucr2;
 #define FOCUS       20
 #define DELAY       1000
 #define WRAP        1     // wrap color wave
-
+Adafruit_NeoPixel *strip;
 int pin = 0;                             // Ring Led input
 int numPixels = 12; 
 int brightness = 20;
 int pixelFormat = NEO_GRB + NEO_KHZ800;
-Adafruit_NeoPixel *strip;
 
-int animduration = 13000; // loop time 13000 ~= 10s 
-int animticks = 0;
+#define BUTTON_A_PIN  2   // multi mode button
+Button2 *buttonA;
+int debounce_longclick = 1;
+int debounce_count = 2;
+bool intro;
+
+void sleep(void);
+
+int sleeptime  = 10000; // loop time 10000 ~= 10s 
+int sleepcount = 0;
+bool onSuspend = true;
+
 
 uint32_t four[12] = {   // intro image
   0xFF0000FF,
@@ -62,13 +71,6 @@ uint32_t dice[6][12] = {                   // dice texture numbers
   { 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0},   // dice number 5
   { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // dice number 6
 };
-
-#define BUTTON_A_PIN  2   // multi mode button
-Button2 *buttonA;
-bool onSuspend = true;
-bool intro;
-
-void sleep(void);
 
 uint32_t loadRandomColor() {
   return strip->Color(random(brightness), random(brightness), random(brightness));
@@ -112,17 +114,20 @@ void launchDice() {
 void OnClickHandler(Button2& btn) {
   if(!onSuspend) {
     launchDice();
-    animticks=0;
+    sleepcount=0;
   }
 }
 
 void OnLongClickHandler(Button2& btn) {
-  if (!onSuspend) {
+  if (!onSuspend && debounce_count>debounce_longclick) {
     brightness = brightness + 10;
-    if (brightness > 60) brightness = 10;
+    if (brightness > 30) brightness = 10;
     strip->setBrightness(brightness);
     strip->show();
-    animticks = 0;
+    sleepcount = 0;
+  } else if (!onSuspend) {
+    debounce_count++;
+    sleepcount = 0;
   }
 }
 
@@ -176,6 +181,7 @@ void clear() {
 
 void sleep() {
   clear();               // clear ring
+
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
   ACSR |= _BV(ACD);      // Disable the analog comparator
@@ -194,8 +200,9 @@ void sleep() {
   PCMSK &= ~_BV(PCINT2); // Turn off PB2 as interrupt pin
   sleep_disable();       // Clear SE bit
   sei();                 // Enable interrupts
-
-  animticks = 0;         // reset anim time counter
+ 
+  debounce_count = 0;
+  sleepcount = 0;        // reset anim time counter
   onSuspend = true;      // prevent button delay issue
 }
 
@@ -211,7 +218,7 @@ void loop() {
     launchDice();
     onSuspend=false;
   }
-  if (animticks++>animduration) {
+  if (sleepcount++>sleeptime) {
     colorWipe(0,60);
     sleep();
   }
