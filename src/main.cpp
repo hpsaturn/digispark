@@ -28,7 +28,7 @@ int pixelFormat = NEO_GRB + NEO_KHZ800;
 #define DELAY       1000
 #define WRAP        1     // wrap color wave
 int pin = 0;              // Ring Led input
-int numPixels = 12;       
+int numPixels = 12;
 int brightness = 30;      // after that is loaded from eeprom
 
 #define BUTTON_A_PIN  2   // multi mode button pin
@@ -40,7 +40,7 @@ bool intro;               // animation intro flag
 #define BODS 7             //BOD Sleep bit in MCUCR
 #define BODSE 2            //BOD Sleep enable bit in MCUCR
 uint8_t mcucr1, mcucr2;    //sleep mcu vars
-int sleeptime  = 10000;   // sleep time 10000 ~= 8s 
+int sleeptime  = 10000;   // sleep time 10000 ~= 8s
 int sleepcount = 0;       // sleep counter
 bool onSuspend = true;    // init with reached condition
 
@@ -106,11 +106,6 @@ void rainbow(int wait) {                // Adafruit rainbow (see library for exp
   }
 }
 
-void clear() {
-  strip->clear();
-  strip->show();
-}
-
 void OnClickHandler(Button2& btn) {      // onclick handler
   if(!onSuspend) {                       // debounce after sleep
     launchDice();                        // launch dice with normal click
@@ -137,7 +132,6 @@ void OnDoubleClickHandler(Button2& btn) {
 }
 
 void sleep() {
-  clear();               // clear ring
 
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
@@ -158,7 +152,7 @@ void sleep() {
   sleep_disable();       // Clear SE bit
   sei();                 // Enable interrupts
  
-  debounce_count = 0;
+  debounce_count = 0;    // for long click issue
   sleepcount = 0;        // reset anim time counter
   onSuspend = true;      // prevent button delay issue
 }
@@ -184,16 +178,16 @@ void setup() {
 }
 
 void loop() {
-  buttonA->loop();
+  buttonA->loop();       // check multi event button
   if(!intro){            // only show intro one time or with double click
-    rainbow(3);
+    rainbow(1);          // fast intro animation
     intro=true;
   }
   if(onSuspend){         // after sleep starting with dice
-    launchDice();
+    launchDice();        // launch 1-6 dice
     onSuspend=false;
   }
-  if (sleepcount++>sleeptime) {
+  if(sleepcount++>sleeptime) {
     colorWipe(0,60);     // sleep animation
     sleep();             // go to low power consumption
   }
