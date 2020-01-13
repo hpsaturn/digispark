@@ -24,7 +24,7 @@
 #define BODSE 2                  //BOD Sleep enable bit in MCUCR
 uint8_t mcucr1, mcucr2;
 
-#define RNDPIN      5      // for random generator
+#define RNDPIN      4      // for random generator
 
 #define FOCUS       20
 #define DELAY       1000
@@ -38,40 +38,85 @@ Adafruit_NeoPixel *strip;
 
 int animduration = 13000; // loop time 13000 ~= 10s 
 int animticks = 0;
-uint32_t color = 0;
+
+uint32_t four[12] = {   // intro image
+  0xFF0000FF,
+  0xFF00FF00,
+  0xFFFF0000,
+  0xFF0000FF,
+  0xFF00FFFF,
+  0xFFFFFFFF,
+  0xFF00FFFF,
+  0xFF000FFF,
+  0xFF00FFFF,
+  0xFF0FFFFF,
+  0xFFFFFFFF,
+  0xFF0FFFFF
+};
+
+uint32_t dice[6][12] = {                   // dice texture numbers
+  { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},   // dice number 1
+  { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // dice number 2
+  { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0},   // dice number 3
+  { 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0},   // dice number 4
+  { 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0},   // dice number 5
+  { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // dice number 6
+};
 
 #define BUTTON_A_PIN  2   // multi mode button
 Button2 *buttonA;
 bool onSuspend = true;
+bool intro;
 
 void sleep(void);
 
-void loadRandomColor() {
-  color = strip->Color(random(brightness), random(brightness), random(brightness));
-  eeprom_write_dword(0,color);
+uint32_t loadRandomColor() {
+  return strip->Color(random(brightness), random(brightness), random(brightness));
 }
 
-void colorWipe(int wait) {
-  for(int i=0; i<numPixels; i++) { // For each pixel in strip...
-    strip->setPixelColor(i, color);         //  Set pixel's color (in RAM)
-    strip->show();                          //  Update strip to match
-    delay(wait);                           //  Pause for a moment
+void colorWipe(uint32_t color, int wait) {
+  for(int i=0; i<numPixels; i++) {    // For each pixel in strip...
+    strip->setPixelColor(i, color);   //  Set pixel's color (in RAM)
+    strip->show();                    //  Update strip to match
+    delay(wait);                      //  Pause for a moment
   }
+}
+
+void loadImage(uint32_t *image){
+  for(int i=0; i<numPixels; i++) {
+    strip->setPixelColor(i,image[i]);         //  Set pixel's color (in RAM)
+    strip->show();
+  }
+}
+
+void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
+  for(int i=0; i<numPixels; i++) {
+    if(dice[num][i])
+      strip->setPixelColor(i,cnm);
+    else
+      strip->setPixelColor(i,cbg);
+    strip->show();
+    delay(wait);
+  }
+}
+
+void launchDice() {
+  uint32_t cbg = strip->Color(0,0,255);
+  uint32_t cnm = strip->Color(255,0,0);
+  colorWipe(0,10);
+  delay(100);
+  colorWipe(cbg,20);
+  loadNumber(cbg,cnm,random(6),30);
 }
 
 void OnClickHandler(Button2& btn) {
   if(!onSuspend) {
-    loadRandomColor();
-    colorWipe(30);     // turn on/off suspend
+    launchDice();
     animticks=0;
   }
 }
 
 void OnLongClickHandler(Button2& btn) {
-  if(!onSuspend)sleep();
-}
-
-void OnDoubleClickHandler(Button2& btn) {
   if (!onSuspend) {
     brightness = brightness + 10;
     if (brightness > 60) brightness = 10;
@@ -81,14 +126,41 @@ void OnDoubleClickHandler(Button2& btn) {
   }
 }
 
+void OnDoubleClickHandler(Button2& btn) {
+  if(!onSuspend)intro=false;
+}
+
+void rainbow(int wait) {
+  // Hue of first pixel runs 3 complete loops through the color wheel.
+  // Color wheel has a range of 65536 but it's OK if we roll over, so
+  // just count from 0 to 3*65536. Adding 256 to firstPixelHue each time
+  // means we'll make 3*65536/256 = 768 passes through this outer loop:
+  for(long firstPixelHue = 0; firstPixelHue < 3*65536; firstPixelHue += 256) {
+    for(int i=0; i<numPixels; i++) { // For each pixel in strip...
+      // Offset pixel hue by an amount to make one full revolution of the
+      // color wheel (range of 65536) along the length of the strip
+      // (strip.numPixels() steps):
+      int pixelHue = firstPixelHue + (i * 65536L / numPixels);
+      // strip.ColorHSV() can take 1 or 3 arguments: a hue (0 to 65535) or
+      // optionally add saturation and value (brightness) (each 0 to 255).
+      // Here we're using just the single-argument hue variant. The result
+      // is passed through strip.gamma32() to provide 'truer' colors
+      // before assigning to each pixel:
+      strip->setPixelColor(i, strip->gamma32(strip->ColorHSV(pixelHue)));
+    }
+    strip->show(); // Update strip with new contents
+    delay(wait);  // Pause for a moment
+  }
+}
+
 void setup() {
   // initialize pseudo-random number generator with some random value
+  pinMode(RNDPIN, INPUT);
   randomSeed(analogRead(RNDPIN));
-
   // initialize LED strip
   strip = new Adafruit_NeoPixel(numPixels, pin, pixelFormat);
   strip->begin();
-  color=eeprom_read_dword(0);
+  strip->setBrightness(20);
   strip->show();
   // initialize Button
   buttonA = new Button2(BUTTON_A_PIN);
@@ -131,11 +203,16 @@ ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don'
 
 void loop() {
   buttonA->loop();
+  if(!intro){
+    rainbow(3);
+    intro=true;
+  }
   if(onSuspend){
-    colorWipe(30);
+    launchDice();
     onSuspend=false;
   }
   if (animticks++>animduration) {
+    colorWipe(0,60);
     sleep();
   }
   strip->show();
