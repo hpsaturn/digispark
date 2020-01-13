@@ -42,19 +42,13 @@ uint32_t color = 0;
 
 #define BUTTON_A_PIN  2   // multi mode button
 Button2 *buttonA;
-bool onSuspend;
+bool onSuspend = true;
 
 void sleep(void);
 
 void loadRandomColor() {
   color = strip->Color(random(brightness), random(brightness), random(brightness));
   eeprom_write_dword(0,color);
-}
-
-void animRingLoop() {
-  for (int i=0; i<numPixels; i++) {
-    strip->setPixelColor(i,color);
-  }
 }
 
 void colorWipe(int wait) {
@@ -71,19 +65,20 @@ void OnClickHandler(Button2& btn) {
     colorWipe(30);     // turn on/off suspend
     animticks=0;
   }
-  else onSuspend=false;             // fix button delay after suspend
 }
 
 void OnLongClickHandler(Button2& btn) {
-  sleep();
+  if(!onSuspend)sleep();
 }
 
 void OnDoubleClickHandler(Button2& btn) {
-  brightness = brightness + 10;
-  if (brightness > 60) brightness = 10;
-  strip->setBrightness(brightness);
-  strip->show();
-  animticks=0;
+  if (!onSuspend) {
+    brightness = brightness + 10;
+    if (brightness > 60) brightness = 10;
+    strip->setBrightness(brightness);
+    strip->show();
+    animticks = 0;
+  }
 }
 
 void setup() {
@@ -93,8 +88,8 @@ void setup() {
   // initialize LED strip
   strip = new Adafruit_NeoPixel(numPixels, pin, pixelFormat);
   strip->begin();
-  strip->show();
   color=eeprom_read_dword(0);
+  strip->show();
   // initialize Button
   buttonA = new Button2(BUTTON_A_PIN);
   buttonA->setClickHandler(OnClickHandler);
@@ -109,9 +104,6 @@ void clear() {
 
 void sleep() {
   clear();               // clear ring
-  onSuspend = true;      // prevent button delay issue
-  animticks = 0;         // reset anim time counter
-
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
   ACSR |= _BV(ACD);      // Disable the analog comparator
@@ -130,6 +122,9 @@ void sleep() {
   PCMSK &= ~_BV(PCINT2); // Turn off PB2 as interrupt pin
   sleep_disable();       // Clear SE bit
   sei();                 // Enable interrupts
+
+  animticks = 0;         // reset anim time counter
+  onSuspend = true;      // prevent button delay issue
 }
 
 ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don't need to do anything in it
