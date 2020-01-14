@@ -14,6 +14,7 @@
  * 0003 : Changed primitives for Adafruit new implementation
  * 0004 : Added eeprom methods for color and brightness
  * 0005 : Added dice primitives, number textures and animations
+ * 0006 : Added dice type selector feature
  * ***********************************************************************************/
 
 #include <Adafruit_NeoPixel.h>
@@ -24,18 +25,15 @@
 
 Adafruit_NeoPixel *strip;
 int pixelFormat = NEO_GRB + NEO_KHZ800;
-#define FOCUS       20
-#define DELAY       1000
-#define WRAP        1     // wrap color wave
 int pin = 0;              // Ring Led input
-int numPixels = 12;
-int brightness = 30;      // after that is loaded from eeprom
-
-#define BUTTON_A_PIN  2   // multi mode button pin
+int numPixels = 12;       // leds on hardware
+uint8_t brightness = 30;  // After that is loaded from eeprom
+                          // and changet it via key
+#define BUTTON_A_PIN  2   // Multi mode button pin
 Button2 *buttonA;
-int debounce       = 1;   // total debounce value
+int debounce       = 1;   // Total debounce value
 int debounce_count = 2;   // init with overreached value
-bool intro;               // animation intro flag
+bool intro;               // Animation intro flag
 
 #define BODS 7             //BOD Sleep bit in MCUCR
 #define BODSE 2            //BOD Sleep enable bit in MCUCR
@@ -45,17 +43,19 @@ int sleepcount = 0;       // sleep counter
 bool onSuspend = true;    // init with reached condition
 
 #define RNDPIN      2     // for random generator, P4 is analog input 2
-
 int dicetype = 6;
 
-uint32_t dice[6][12] = {                   // dice texture numbers
-  { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},   // dice number 1
-  { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // dice number 2
-  { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0},   // dice number 3
-  { 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0},   // dice number 4
-  { 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0},   // dice number 5
-  { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // dice number 6
+uint32_t dice[6][12] = {                   // Dice texture numbers
+  { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},   // number 1
+  { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // number 2
+  { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0},   // number 3
+  { 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0},   // number 4
+  { 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0},   // number 5
+  { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // number 6
 };
+
+#define EEA_BRIGTHNESS 10     // eeprom address for brightness
+#define EEA_DICETYPE   20     // eeprom addres for dice type
 
 uint32_t getRandomColor() {
   return strip->Color(random(brightness), random(brightness), random(brightness));
@@ -91,9 +91,9 @@ void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
 void launchDice() {
   uint32_t cbg = strip->Color(0,0,255);    // background color
   uint32_t cnm = strip->Color(255,0,0);    // number color
-  loadColor(0,30);                         // animating clead
+  loadColor(0,20);                         // animating clead
   loadColor(cbg,20);                       // paint background
-  loadNumber(cbg,cnm,random(dicetype),30); // load dice number
+  loadNumber(cbg,cnm,random(dicetype),20); // load dice number
 }
 
 void rainbow(int wait) {                // Adafruit rainbow (see library for explanation)
@@ -115,12 +115,12 @@ void OnClickHandler(Button2& btn) {      // onclick handler
 }
 
 void OnLongClickHandler(Button2& btn) {           
-  if (!onSuspend && debounce_count>debounce) {  // weird anti debounce issue fix
-    brightness = brightness + 10;               // increment brightness for ring image
-    if (brightness > 30) brightness = 10;       // max value
+  if (!onSuspend && debounce_count>debounce) {    // weird anti debounce issue fix
+    brightness = brightness + 10;                 // increment brightness for ring image
+    if (brightness > 30) brightness = 10;         // max value
     strip->setBrightness(brightness);
     strip->show();
-    eeprom_write_byte(10,brightness);
+    eeprom_write_byte(EEA_BRIGTHNESS,brightness); // save in eeprom
     sleepcount = 0;
   } else if (!onSuspend) {
     debounce_count++;
@@ -128,14 +128,15 @@ void OnLongClickHandler(Button2& btn) {
   }
 }
 
-void OnDoubleClickHandler(Button2& btn) {    // Dice type changer
-  if(!onSuspend) {                           // avoid onsleep event
-    if(++dicetype>6)dicetype=2;              // dice types: 2 to 6
+void OnDoubleClickHandler(Button2& btn) {     // Dice type changer
+  if(!onSuspend) {                            // avoid onsleep event
+    if(++dicetype>6)dicetype=2;               // dice types: 2 to 6
     loadColor(0,10);                   
-    uint32_t cbg = strip->Color(0,0,255);    // background color
-    uint32_t cnm = strip->Color(0,255,0);    // number color
+    uint32_t cbg = strip->Color(0,0,255);     // background color
+    uint32_t cnm = strip->Color(0,255,0);     // number color
     loadColor(cbg,10);
-    loadNumber(cbg,cnm,dicetype-1,30); // load dice number
+    loadNumber(cbg,cnm,dicetype-1,30);        // load dice number
+    eeprom_write_byte(EEA_DICETYPE,dicetype); // save in eeprom
     sleepcount = 0;
   }
 }
@@ -172,8 +173,11 @@ void setup() {
   // initialize pseudo-random number generator with some random value
   randomSeed(analogRead(RNDPIN));
   // initialize brightness
-  uint8_t old_brg=eeprom_read_byte(10);
+  uint8_t old_brg=eeprom_read_byte(EEA_BRIGTHNESS);
   if(old_brg>0 && old_brg != brightness)brightness=old_brg;
+  // initialize dice type
+  uint8_t old_type=eeprom_read_byte(EEA_DICETYPE);
+  if(old_type>1 && old_type<7 && old_type!=dicetype)dicetype=old_type;
   // initialize LED strip
   strip = new Adafruit_NeoPixel(numPixels, pin, pixelFormat);
   strip->begin();
