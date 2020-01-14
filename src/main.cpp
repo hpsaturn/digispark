@@ -46,6 +46,8 @@ bool onSuspend = true;    // init with reached condition
 
 #define RNDPIN      2     // for random generator, P4 is analog input 2
 
+int dicetype = 6;
+
 uint32_t dice[6][12] = {                   // dice texture numbers
   { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},   // dice number 1
   { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // dice number 2
@@ -55,11 +57,11 @@ uint32_t dice[6][12] = {                   // dice texture numbers
   { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // dice number 6
 };
 
-uint32_t loadRandomColor() {
+uint32_t getRandomColor() {
   return strip->Color(random(brightness), random(brightness), random(brightness));
 }
 
-void colorWipe(uint32_t color, int wait) {
+void loadColor(uint32_t color, int wait) {
   for(int i=0; i<numPixels; i++) {    // For each pixel in strip...
     strip->setPixelColor(i, color);   // Set pixel's color (in RAM)
     strip->show();                    // Update strip to match
@@ -87,12 +89,11 @@ void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
 }
 
 void launchDice() {
-  uint32_t cbg = strip->Color(0,0,255); // background color
-  uint32_t cnm = strip->Color(255,0,0); // number color
-  colorWipe(0,10);                      // animating clead
-  delay(100);                           // change time
-  colorWipe(cbg,20);                    // paint background
-  loadNumber(cbg,cnm,random(6),30);     // load dice number
+  uint32_t cbg = strip->Color(0,0,255);    // background color
+  uint32_t cnm = strip->Color(255,0,0);    // number color
+  loadColor(0,30);                         // animating clead
+  loadColor(cbg,20);                       // paint background
+  loadNumber(cbg,cnm,random(dicetype),30); // load dice number
 }
 
 void rainbow(int wait) {                // Adafruit rainbow (see library for explanation)
@@ -127,8 +128,16 @@ void OnLongClickHandler(Button2& btn) {
   }
 }
 
-void OnDoubleClickHandler(Button2& btn) {
-  if(!onSuspend)intro=false;
+void OnDoubleClickHandler(Button2& btn) {    // Dice type changer
+  if(!onSuspend) {                           // avoid onsleep event
+    if(++dicetype>6)dicetype=2;              // dice types: 2 to 6
+    loadColor(0,10);                   
+    uint32_t cbg = strip->Color(0,0,255);    // background color
+    uint32_t cnm = strip->Color(0,255,0);    // number color
+    loadColor(cbg,10);
+    loadNumber(cbg,cnm,dicetype-1,30); // load dice number
+    sleepcount = 0;
+  }
 }
 
 void sleep() {
@@ -180,7 +189,7 @@ void setup() {
 void loop() {
   buttonA->loop();       // check multi event button
   if(!intro){            // only show intro one time or with double click
-    rainbow(1);          // fast intro animation
+    rainbow(2);          // fast intro animation
     intro=true;
   }
   if(onSuspend){         // after sleep starting with dice
@@ -188,7 +197,7 @@ void loop() {
     onSuspend=false;
   }
   if(sleepcount++>sleeptime) {
-    colorWipe(0,60);     // sleep animation
+    loadColor(0,60);     // sleep animation
     sleep();             // go to low power consumption
   }
   strip->show();
