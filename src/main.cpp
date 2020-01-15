@@ -116,11 +116,13 @@ void OnClickHandler(Button2& btn) {      // onclick handler
 
 void OnLongClickHandler(Button2& btn) {           
   if (!onSuspend && debounce_count>debounce) {    // weird anti debounce issue fix
-    brightness = brightness + 10;                 // increment brightness for ring image
-    if (brightness > 30) brightness = 10;         // max value
-    strip->setBrightness(brightness);
-    strip->show();
-    eeprom_write_byte(EEA_BRIGTHNESS,brightness); // save in eeprom
+    if(++dicetype>6)dicetype=2;               // dice types: 2 to 6
+    loadColor(0,10);                   
+    uint32_t cbg = strip->Color(0,0,255);     // background color
+    uint32_t cnm = strip->Color(0,255,0);     // number color
+    loadColor(cbg,10);
+    loadNumber(cbg,cnm,dicetype-1,30);        // load dice number
+    eeprom_write_byte(EEA_DICETYPE,dicetype); // save in eeprom
     sleepcount = 0;
   } else if (!onSuspend) {
     debounce_count++;
@@ -130,13 +132,11 @@ void OnLongClickHandler(Button2& btn) {
 
 void OnDoubleClickHandler(Button2& btn) {     // Dice type changer
   if(!onSuspend) {                            // avoid onsleep event
-    if(++dicetype>6)dicetype=2;               // dice types: 2 to 6
-    loadColor(0,10);                   
-    uint32_t cbg = strip->Color(0,0,255);     // background color
-    uint32_t cnm = strip->Color(0,255,0);     // number color
-    loadColor(cbg,10);
-    loadNumber(cbg,cnm,dicetype-1,30);        // load dice number
-    eeprom_write_byte(EEA_DICETYPE,dicetype); // save in eeprom
+    brightness = brightness + 10;                 // increment brightness for ring image
+    if (brightness > 30) brightness = 10;         // max value
+    strip->setBrightness(brightness);
+    strip->show();
+    eeprom_write_byte(EEA_BRIGTHNESS,brightness); // save in eeprom
     sleepcount = 0;
   }
 }
