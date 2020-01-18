@@ -22,6 +22,7 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
+#include <ADCTouch.h>
 
 Adafruit_NeoPixel *strip;
 int pixelFormat = NEO_GRB + NEO_KHZ800;
@@ -34,6 +35,7 @@ Button2 *buttonA;
 int debounce       = 1;   // Total debounce value
 int debounce_count = 2;   // init with overreached value
 bool intro;               // Animation intro flag
+int ref0;                 // reference for ADCButton
 
 #define BODS 7             //BOD Sleep bit in MCUCR
 #define BODSE 2            //BOD Sleep enable bit in MCUCR
@@ -145,8 +147,8 @@ void sleep() {
 
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
-  ACSR |= _BV(ACD);      // Disable the analog comparator
-  ADCSRA &= ~_BV(ADEN);  // Disable ADC
+  // ACSR |= _BV(ACD);      // Disable the analog comparator
+  // ADCSRA &= ~_BV(ADEN);  // Disable ADC
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   cli();
@@ -188,10 +190,17 @@ void setup() {
   buttonA->setClickHandler(OnClickHandler);
   buttonA->setLongClickHandler(OnLongClickHandler);
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
+  // initialize Touch Button (ADCButton)
+  ref0 = ADCTouch.read(RNDPIN, 500);
 }
 
 void loop() {
   buttonA->loop();       // check multi event button
+  int value0 = ADCTouch.read(RNDPIN);
+  value0 -= ref0;        //remove offset
+  if(value0>100){
+    launchDice();
+  }
   if(!intro){            // only show intro one time or with double click
     rainbow(2);          // fast intro animation
     intro=true;
