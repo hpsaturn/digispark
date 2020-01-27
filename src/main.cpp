@@ -173,9 +173,6 @@ void OnDoubleClickHandler(Button2& btn) {     // Dice type changer
 }
 
 void sleep() {
-
-  debugBlink(3);
-
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
   ACSR |= _BV(ACD);      // Disable the analog comparator
@@ -208,7 +205,7 @@ void setup() {
   debugBlink(1);
   // initialize pseudo-random number generator with some random value
   int seed = analogRead(RNDPIN);
-  debugBlink(seed);
+  // debugBlink(seed);
   randomSeed(seed);
   // initialize brightness
   uint8_t old_brg=eeprom_read_byte(EEA_BRIGTHNESS);
@@ -227,17 +224,12 @@ void setup() {
   buttonA->setLongClickHandler(OnLongClickHandler);
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
   // initialize Touch Button (ADCButton)
-  // ref0 = ADCTouch.read(RNDPIN, 500);
+  ref0 = ADCTouch.read(RNDPIN, 500);
 }
 
 void loop() {
   buttonA->loop();       // check multi event button
-  // int value0 = ADCTouch.read(RNDPIN);
-  // value0 -= ref0;        //remove offset
-  // if(value0>100){
-    // debugBlink(1);
-    // launchDice();
-  // }
+  
   if(!intro){            // only show intro one time or with double click
     rainbow(2);          // fast intro animation
     intro=true;
@@ -247,8 +239,15 @@ void loop() {
     onSuspend=false;
   }
   if(sleepcount++>sleeptime) {
+    debugBlink(3);
     loadColor(0,60);     // sleep animation
     sleep();             // go to low power consumption
   }
+  // int value0 = ADCTouch.read(RNDPIN);
+  // value0 -= ref0;        //remove offset
+  // if(value0>150){
+  //   debugBlink(1);
+  //   launchDice();
+  // }
   strip->show();
 }
