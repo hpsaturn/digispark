@@ -22,7 +22,6 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
-#include <ADCTouch.h>
 
 Adafruit_NeoPixel *strip;
 int pixelFormat = NEO_GRB + NEO_KHZ800;
@@ -40,7 +39,7 @@ int ref0;                 // reference for ADCButton
 #define BODS 7             //BOD Sleep bit in MCUCR
 #define BODSE 2            //BOD Sleep enable bit in MCUCR
 uint8_t mcucr1, mcucr2;    //sleep mcu vars
-int sleeptime  = 10000;   // sleep time 10000 ~= 8s
+int sleeptime  = 500;   // sleep time 10000 ~= 8s
 int sleepcount = 0;       // sleep counter
 bool onSuspend = true;    // init with reached condition
 
@@ -59,7 +58,7 @@ uint32_t dice[6][12] = {                   // Dice texture numbers
 #define EEA_BRIGTHNESS 10     // eeprom address for brightness
 #define EEA_DICETYPE   20     // eeprom addres for dice type
 
-#define DEBUG 1  // Set to 1 to enable, 0 to disable
+#define DEBUG 0  // Set to 1 to enable, 0 to disable
  
 #if DEBUG
 #define DebugPin 1  // Digispark model A onboard LED
@@ -198,6 +197,15 @@ void sleep() {
   onSuspend = true;      // prevent button delay issue
 }
 
+int ADCread(byte ADCChannel, int samples)
+{
+	long _value = 0;
+	for(int _counter = 0; _counter < samples; _counter ++) {
+		_value += analogRead(ADCChannel);
+	}
+	return _value / samples;
+}
+
 ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don't need to do anything in it
 
 void setup() {
@@ -224,7 +232,7 @@ void setup() {
   buttonA->setLongClickHandler(OnLongClickHandler);
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
   // initialize Touch Button (ADCButton)
-  ref0 = ADCTouch.read(RNDPIN, 500);
+  ref0 = 1;
 }
 
 void loop() {
@@ -243,11 +251,12 @@ void loop() {
     loadColor(0,60);     // sleep animation
     sleep();             // go to low power consumption
   }
-  // int value0 = ADCTouch.read(RNDPIN);
-  // value0 -= ref0;        //remove offset
-  // if(value0>150){
-  //   debugBlink(1);
-  //   launchDice();
-  // }
+  int value0 = ADCread(RNDPIN,50);
+  value0 -= ref0;        //remove offset
+  if(value0>60){
+    debugBlink(1);
+    launchDice();
+    sleepcount=0;
+  }
   strip->show();
 }
