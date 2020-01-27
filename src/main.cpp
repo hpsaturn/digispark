@@ -120,13 +120,13 @@ void OnClickHandler(Button2& btn) {      // onclick handler
 
 void OnLongClickHandler(Button2& btn) {           
   if (!onSuspend && debounce_count>debounce) {    // weird anti debounce issue fix
-    if(++dicetype>6)dicetype=2;               // dice types: 2 to 6
+    if(++dicetype>6)dicetype=2;                   // dice types: 2 to 6
     loadColor(0,10);                   
-    uint32_t cbg = strip->Color(0,0,255);     // background color
-    uint32_t cnm = strip->Color(0,255,0);     // number color
+    uint32_t cbg = strip->Color(0,0,255);         // background color
+    uint32_t cnm = strip->Color(0,255,0);         // number color
     loadColor(cbg,10);
-    loadNumber(cbg,cnm,dicetype-1,30);        // load dice number
-    eeprom_write_byte(EEA_DICETYPE,dicetype); // save in eeprom
+    loadNumber(cbg,cnm,dicetype-1,30);            // load dice number
+    eeprom_write_byte(EEA_DICETYPE,dicetype);     // save in eeprom
     sleepcount = 0;
   } else if (!onSuspend) {
     debounce_count++;
@@ -134,8 +134,8 @@ void OnLongClickHandler(Button2& btn) {
   }
 }
 
-void OnDoubleClickHandler(Button2& btn) {     // Dice type changer
-  if(!onSuspend) {                            // avoid onsleep event
+void OnDoubleClickHandler(Button2& btn) {         // Dice type changer
+  if(!onSuspend) {                                // avoid onsleep event
     brightness = brightness + 10;                 // increment brightness for ring image
     if (brightness > 30) brightness = 10;         // max value
     strip->setBrightness(brightness);
@@ -207,26 +207,29 @@ void setup() {
 }
 
 void loop() {
-  buttonA->loop();       // check multi event button
+
+  buttonA->loop();                 // check multi event button
   
-  if(!intro){            // only show intro one time or with double click
-    rainbow(2);          // fast intro animation
-    intro=true;
+  if(!intro){                      // only show intro one time or with double click
+    rainbow(2);                    // fast intro animation
+    intro=true;                    // animation intro only after reset
   }
-  if(onSuspend){         // after sleep starting with dice
-    launchDice();        // launch 1-6 dice
-    onSuspend=false;
+  if(onSuspend){                   // after sleep starting with dice
+    launchDice();                  // launch 1-6 dice
+    onSuspend=false;               // reset suspend flag
   }
-  if(sleepcount++>sleeptime) {
-    debugBlink(3);
-    loadColor(0,60);     // sleep animation
-    sleep();             // go to low power consumption
+
+  int value0 = ADCread(RNDPIN,50); // reading analog avarage value (50 samples)
+  if(value0>60){                   // calculating if touch button was pressed
+    debugBlink(1);                 // only in debuging one blink
+    launchDice();                  // launch dice
+    sleepcount=0;                  // reset sleep timer
   }
-  int value0 = ADCread(RNDPIN,50);
-  if(value0>60){
-    debugBlink(1);
-    launchDice();
-    sleepcount=0;
+  if(sleepcount++>sleeptime) {     // testing if sleep time was reached
+    debugBlink(3);                 // only in debuging 3 blinks
+    loadColor(0,60);               // sleep animation
+    sleep();                       // go to low power consumption
   }
   strip->show();
+
 }
