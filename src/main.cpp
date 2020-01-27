@@ -14,7 +14,9 @@
  * 0003 : Changed primitives for Adafruit new implementation
  * 0004 : Added eeprom methods for color and brightness
  * 0005 : Added dice primitives, number textures and animations
- * 0006 : Added dice type selector feature
+ * 0006 : Added dice type selector feature (dice type: 2,3,4,5 and 6)
+ * 0007 : Added debug macros over blink led
+ * 0008 : Added touch button option from ADC measures
  * ***********************************************************************************/
 
 #include <Adafruit_NeoPixel.h>
@@ -22,6 +24,7 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
+#include "debug.h"
 
 Adafruit_NeoPixel *strip;
 int pixelFormat = NEO_GRB + NEO_KHZ800;
@@ -36,10 +39,10 @@ int debounce_count = 2;   // init with overreached value
 bool intro;               // Animation intro flag
 int ref0;                 // reference for ADCButton
 
-#define BODS 7             //BOD Sleep bit in MCUCR
-#define BODSE 2            //BOD Sleep enable bit in MCUCR
-uint8_t mcucr1, mcucr2;    //sleep mcu vars
-int sleeptime  = 500;   // sleep time 10000 ~= 8s
+#define BODS 7            // BOD Sleep bit in MCUCR
+#define BODSE 2           // BOD Sleep enable bit in MCUCR
+uint8_t mcucr1, mcucr2;   // sleep mcu vars
+int sleeptime  = 1500;    // sleep time 10000 ~= 8s
 int sleepcount = 0;       // sleep counter
 bool onSuspend = true;    // init with reached condition
 
@@ -57,35 +60,6 @@ uint32_t dice[6][12] = {                   // Dice texture numbers
 
 #define EEA_BRIGTHNESS 10     // eeprom address for brightness
 #define EEA_DICETYPE   20     // eeprom addres for dice type
-
-#define DEBUG 0  // Set to 1 to enable, 0 to disable
- 
-#if DEBUG
-#define DebugPin 1  // Digispark model A onboard LED
-#define DebugBlink 75
-#define DebugPause 300
-#define debugDelay(ms) delay(ms)  // Change if you need a special delay function (e.g. if you use libraries that need regular refresh calls)
- 
-void _debugBlink(int n) {
-  for ( int i = 0 ; i < n ; i++ ) {
-    digitalWrite(DebugPin, HIGH);
-    debugDelay(DebugBlink);
-    digitalWrite(DebugPin, LOW);
-    debugDelay(DebugBlink);
-  }
-  debugDelay(DebugPause);
-}
- 
-void _debugSetup() {
-  pinMode(DebugPin, OUTPUT);
-}
- 
-#define debugBlink(n) _debugBlink(n)  // Do the blink when DEBUG is set
-#define debugSetup() _debugSetup()
-#else
-#define debugBlink(n)  // Make the calls disappear when DEBUG is 0
-#define debugSetup()
-#endif
 
 uint32_t getRandomColor() {
   return strip->Color(random(brightness), random(brightness), random(brightness));
@@ -197,8 +171,7 @@ void sleep() {
   onSuspend = true;      // prevent button delay issue
 }
 
-int ADCread(byte ADCChannel, int samples)
-{
+int ADCread(byte ADCChannel, int samples) {
 	long _value = 0;
 	for(int _counter = 0; _counter < samples; _counter ++) {
 		_value += analogRead(ADCChannel);
@@ -231,8 +204,6 @@ void setup() {
   buttonA->setClickHandler(OnClickHandler);
   buttonA->setLongClickHandler(OnLongClickHandler);
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
-  // initialize Touch Button (ADCButton)
-  ref0 = 1;
 }
 
 void loop() {
@@ -252,7 +223,6 @@ void loop() {
     sleep();             // go to low power consumption
   }
   int value0 = ADCread(RNDPIN,50);
-  value0 -= ref0;        //remove offset
   if(value0>60){
     debugBlink(1);
     launchDice();
