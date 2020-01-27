@@ -59,6 +59,35 @@ uint32_t dice[6][12] = {                   // Dice texture numbers
 #define EEA_BRIGTHNESS 10     // eeprom address for brightness
 #define EEA_DICETYPE   20     // eeprom addres for dice type
 
+#define DEBUG 1  // Set to 1 to enable, 0 to disable
+ 
+#if DEBUG
+#define DebugPin 1  // Digispark model A onboard LED
+#define DebugBlink 75
+#define DebugPause 300
+#define debugDelay(ms) delay(ms)  // Change if you need a special delay function (e.g. if you use libraries that need regular refresh calls)
+ 
+void _debugBlink(int n) {
+  for ( int i = 0 ; i < n ; i++ ) {
+    digitalWrite(DebugPin, HIGH);
+    debugDelay(DebugBlink);
+    digitalWrite(DebugPin, LOW);
+    debugDelay(DebugBlink);
+  }
+  debugDelay(DebugPause);
+}
+ 
+void _debugSetup() {
+  pinMode(DebugPin, OUTPUT);
+}
+ 
+#define debugBlink(n) _debugBlink(n)  // Do the blink when DEBUG is set
+#define debugSetup() _debugSetup()
+#else
+#define debugBlink(n)  // Make the calls disappear when DEBUG is 0
+#define debugSetup()
+#endif
+
 uint32_t getRandomColor() {
   return strip->Color(random(brightness), random(brightness), random(brightness));
 }
@@ -145,10 +174,12 @@ void OnDoubleClickHandler(Button2& btn) {     // Dice type changer
 
 void sleep() {
 
+  debugBlink(3);
+
   GIMSK |= _BV(PCIE);    // Enable Pin Change Interrupts
   PCMSK |= _BV(PCINT2);  // Use PB2 as interrupt pin
-  // ACSR |= _BV(ACD);      // Disable the analog comparator
-  // ADCSRA &= ~_BV(ADEN);  // Disable ADC
+  ACSR |= _BV(ACD);      // Disable the analog comparator
+  ADCSRA &= ~_BV(ADEN);  // Disable ADC
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   cli();
@@ -162,6 +193,7 @@ void sleep() {
   cli();                 // Disable interrupts
   PCMSK &= ~_BV(PCINT2); // Turn off PB2 as interrupt pin
   sleep_disable();       // Clear SE bit
+  ADCSRA |= _BV(ADEN);   // Enable ADC
   sei();                 // Enable interrupts
  
   debounce_count = 0;    // for long click issue
@@ -172,8 +204,12 @@ void sleep() {
 ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don't need to do anything in it
 
 void setup() {
+  debugSetup();
+  debugBlink(1);
   // initialize pseudo-random number generator with some random value
-  randomSeed(analogRead(RNDPIN));
+  int seed = analogRead(RNDPIN);
+  debugBlink(seed);
+  randomSeed(seed);
   // initialize brightness
   uint8_t old_brg=eeprom_read_byte(EEA_BRIGTHNESS);
   if(old_brg>0 && old_brg != brightness)brightness=old_brg;
@@ -191,16 +227,17 @@ void setup() {
   buttonA->setLongClickHandler(OnLongClickHandler);
   buttonA->setDoubleClickHandler(OnDoubleClickHandler);
   // initialize Touch Button (ADCButton)
-  ref0 = ADCTouch.read(RNDPIN, 500);
+  // ref0 = ADCTouch.read(RNDPIN, 500);
 }
 
 void loop() {
   buttonA->loop();       // check multi event button
-  int value0 = ADCTouch.read(RNDPIN);
-  value0 -= ref0;        //remove offset
-  if(value0>100){
-    launchDice();
-  }
+  // int value0 = ADCTouch.read(RNDPIN);
+  // value0 -= ref0;        //remove offset
+  // if(value0>100){
+    // debugBlink(1);
+    // launchDice();
+  // }
   if(!intro){            // only show intro one time or with double click
     rainbow(2);          // fast intro animation
     intro=true;
