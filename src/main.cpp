@@ -172,11 +172,11 @@ void sleep() {
 }
 
 int ADCread(byte ADCChannel, int samples) {
-	long _value = 0;
-	for(int _counter = 0; _counter < samples; _counter ++) {
-		_value += analogRead(ADCChannel);
-	}
-	return _value / samples;
+  long _value = 0;
+  for(int _counter = 0; _counter < samples; _counter ++) {
+    _value += analogRead(ADCChannel);
+  }
+  return _value / samples;
 }
 
 ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don't need to do anything in it
@@ -218,7 +218,6 @@ void loop() {
     launchDice();                  // launch 1-6 dice
     onSuspend=false;               // reset suspend flag
   }
-
   int value0 = ADCread(RNDPIN,50); // reading analog avarage value (50 samples)
   if(value0>60){                   // calculating if touch button was pressed
     debugBlink(1);                 // only in debuging one blink
@@ -230,6 +229,7 @@ void loop() {
     loadColor(0,60);               // sleep animation
     sleep();                       // go to low power consumption
   }
+
   strip->show();
 
 }
