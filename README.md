@@ -1,5 +1,7 @@
 # Digispark Projects
 
+<a href="https://github.com/hpsaturn/digispark/blob/master/images/multi_dice_touch.gif" target="_blank"><img src="https://raw.githubusercontent.com/hpsaturn/digispark/master/images/multi_dice_touch.gif" align="right" width="240" ></a>
+
 Some demo projects using [ATTINY85 Digispark](https://www.aliexpress.com/item/32897732904.html) interfaced with a [12 Bits RGB LED Ring WS2812](https://www.aliexpress.com/item/32666384944.html)
 
 Current demos:
@@ -11,7 +13,6 @@ Current demos:
 - [X] Neopixel button handler (click, long click, doubleclick)
 - [X] Touchbutton demo
 - [X] Multi dice with touch button (master)
-
 
 # Compiling and installing
 
