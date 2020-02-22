@@ -9,7 +9,6 @@ Current demos:
 - [X] Blink LED 
 - [X] Neopixel demo
 - [X] EEPROM color setting
-- [X] Neopixel demo
 - [X] Neopixel button handler (click, long click, doubleclick)
 - [X] Touchbutton demo
 - [X] Multi dice with touch button (master)
@@ -20,7 +19,7 @@ First, please install [PlatformIO](http://platformio.org/) open source ecosystem
 
 Note: with `platformIO` you don't need the Arduino IDE and install libraries, this will do it for you.
 
-## Select project tag
+### Select project tag
 
 First clone the project
 ``` bash
@@ -32,7 +31,7 @@ List projects:
 git tag -n9
 ```
 
-Select and compiling:
+Select tag, compiling and installing:
 ``` bash
 git checkout multi_dice && pio run --target upload
 ```
