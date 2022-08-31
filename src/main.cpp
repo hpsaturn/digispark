@@ -17,6 +17,7 @@
  * 0006 : Added dice type selector feature (dice type: 2,3,4,5 and 6)
  * 0007 : Added debug macros over blink led
  * 0008 : Added touch button option from ADC measures
+ * 0009 : Fixed Adafruit_NeoPixel library issues on last version
  * ***********************************************************************************/
 
 #include <Adafruit_NeoPixel.h>
@@ -153,7 +154,7 @@ void OnLongClickHandler(Button2& btn) {
 void OnDoubleClickHandler(Button2& btn) {         // Dice type changer
   if(!onSuspend) {                                // avoid onsleep event
     brightness = brightness + 10;                 // increment brightness for ring image
-    if (brightness > 30) brightness = 10;         // max value
+    if (brightness > 30) brightness = 5;         // max value
     strip.setBrightness(brightness);
     strip.show();
     eeprom_write_byte(&address_brightness,brightness); // save in eeprom
