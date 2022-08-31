@@ -26,11 +26,13 @@
 #include <avr/eeprom.h>
 #include "debug.h"
 
-Adafruit_NeoPixel *strip;
-int pixelFormat = NEO_GRB + NEO_KHZ800;
-int pin = 0;              // Ring Led input
-int numPixels = 12;       // leds on hardware
+
+#define NUMPIXELS 12
+#define PIN 0
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 uint8_t brightness = 30;  // After that is loaded from eeprom
+
                           // and changet it via key
 #define BUTTON_A_PIN  2   // Multi mode button pin
 Button2 *buttonA;
@@ -62,39 +64,39 @@ uint32_t dice[6][12] = {                   // Dice texture numbers
 #define EEA_DICETYPE   20     // eeprom addres for dice type
 
 uint32_t getRandomColor() {
-  return strip->Color(random(brightness), random(brightness), random(brightness));
+  return strip.Color(random(brightness), random(brightness), random(brightness));
 }
 
 void loadColor(uint32_t color, int wait) {
-  for(int i=0; i<numPixels; i++) {    // For each pixel in strip...
-    strip->setPixelColor(i, color);   // Set pixel's color (in RAM)
-    strip->show();                    // Update strip to match
+  for(int i=0; i<NUMPIXELS; i++) {    // For each pixel in strip...
+    strip.setPixelColor(i, color);   // Set pixel's color (in RAM)
+    strip.show();                    // Update strip to match
     delay(wait);                      // Pause for a moment
   }
 }
 
 void loadImage(uint32_t *image, int wait){  // Load complete image on the ring
-  for(int i=0; i<numPixels; i++) {    
-    strip->setPixelColor(i,image[i]);
-    strip->show();
+  for(int i=0; i<NUMPIXELS; i++) {    
+    strip.setPixelColor(i,image[i]);
+    strip.show();
     delay(wait);
   }
 }
 
 void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
-  for(int i=0; i<numPixels; i++) {
+  for(int i=0; i<NUMPIXELS; i++) {
     if(dice[num][i])                 // select dice mumber and on/off pixel texture
-      strip->setPixelColor(i,cnm);   // set number pixel color
+      strip.setPixelColor(i,cnm);   // set number pixel color
     else
-      strip->setPixelColor(i,cbg);   // set background pixel color
-    strip->show();
+      strip.setPixelColor(i,cbg);   // set background pixel color
+    strip.show();
     delay(wait);
   }
 }
 
 void launchDice() {
-  uint32_t cbg = strip->Color(0,0,255);    // background color
-  uint32_t cnm = strip->Color(255,0,0);    // number color
+  uint32_t cbg = strip.Color(0,0,255);    // background color
+  uint32_t cnm = strip.Color(255,0,0);    // number color
   loadColor(0,20);                         // animating clead
   loadColor(cbg,20);                       // paint background
   loadNumber(cbg,cnm,random(dicetype),20); // load dice number
@@ -102,11 +104,11 @@ void launchDice() {
 
 void rainbow(int wait) {                // Adafruit rainbow (see library for explanation)
   for(long firstPixelHue = 0; firstPixelHue < 3*65536; firstPixelHue += 256) {
-    for(int i=0; i<numPixels; i++) { 
-      int pixelHue = firstPixelHue + (i * 65536L / numPixels);
-      strip->setPixelColor(i, strip->gamma32(strip->ColorHSV(pixelHue)));
+    for(int i=0; i<NUMPIXELS; i++) { 
+      int pixelHue = firstPixelHue + (i * 65536L / NUMPIXELS);
+      strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(pixelHue)));
     }
-    strip->show();
+    strip.show();
     delay(wait);
   }
 }
@@ -122,8 +124,8 @@ void OnLongClickHandler(Button2& btn) {
   if (!onSuspend && debounce_count>debounce) {    // weird anti debounce issue fix
     if(++dicetype>6)dicetype=2;                   // dice types: 2 to 6
     loadColor(0,10);                   
-    uint32_t cbg = strip->Color(0,0,255);         // background color
-    uint32_t cnm = strip->Color(0,255,0);         // number color
+    uint32_t cbg = strip.Color(0,0,255);         // background color
+    uint32_t cnm = strip.Color(0,255,0);         // number color
     loadColor(cbg,10);
     loadNumber(cbg,cnm,dicetype-1,30);            // load dice number
     eeprom_write_byte(EEA_DICETYPE,dicetype);     // save in eeprom
@@ -138,8 +140,8 @@ void OnDoubleClickHandler(Button2& btn) {         // Dice type changer
   if(!onSuspend) {                                // avoid onsleep event
     brightness = brightness + 10;                 // increment brightness for ring image
     if (brightness > 30) brightness = 10;         // max value
-    strip->setBrightness(brightness);
-    strip->show();
+    strip.setBrightness(brightness);
+    strip.show();
     eeprom_write_byte(EEA_BRIGTHNESS,brightness); // save in eeprom
     sleepcount = 0;
   }
@@ -195,10 +197,9 @@ void setup() {
   uint8_t old_type=eeprom_read_byte(EEA_DICETYPE);
   if(old_type>1 && old_type<7 && old_type!=dicetype)dicetype=old_type;
   // initialize LED strip
-  strip = new Adafruit_NeoPixel(numPixels, pin, pixelFormat);
-  strip->begin();
-  strip->setBrightness(brightness);
-  strip->show();
+  strip.begin();
+  strip.setBrightness(brightness);
+  strip.show();
   // initialize Button
   buttonA = new Button2(BUTTON_A_PIN);
   buttonA->setClickHandler(OnClickHandler);
@@ -230,6 +231,6 @@ void loop() {
     sleep();                       // go to low power consumption
   }
 
-  strip->show();
+  strip.show();
 
 }
