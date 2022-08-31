@@ -31,9 +31,7 @@
 #define PIN 0
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
-uint8_t brightness = 30;  // After that is loaded from eeprom
 
-                          // and changet it via key
 #define BUTTON_A_PIN  2   // Multi mode button pin
 Button2 *buttonA;
 int debounce       = 1;   // Total debounce value
@@ -44,15 +42,19 @@ int ref0;                 // reference for ADCButton
 #define BODS 7            // BOD Sleep bit in MCUCR
 #define BODSE 2           // BOD Sleep enable bit in MCUCR
 uint8_t mcucr1, mcucr2;   // sleep mcu vars
-int sleeptime  = 1500;    // sleep time 10000 ~= 8s
-int sleepcount = 0;       // sleep counter
+int sleep_time  = 1500;   // sleep time 10000 ~= 8s
+int sleep_count = 0;      // sleep counter
 bool onSuspend = true;    // init with reached condition
 
 #define RNDPIN      2     // for random generator, P4 is analog input 2
-int dicetype = 6;
 
-uint32_t dice[6][12] = {                   // Dice texture numbers
-  { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},   // number 1
+uint8_t address_brightness = 0;
+uint8_t address_dice_type = 30;
+uint8_t dice_type = 6;
+uint8_t brightness = 25;  // Loaded from eeprom and changet it via key
+
+uint16_t dice[6][12] = {                   // Dice texture numbers
+  { 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1},   // number 1
   { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // number 2
   { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0},   // number 3
   { 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0},   // number 4
@@ -60,23 +62,21 @@ uint32_t dice[6][12] = {                   // Dice texture numbers
   { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // number 6
 };
 
-#define EEA_BRIGTHNESS 10     // eeprom address for brightness
-#define EEA_DICETYPE   20     // eeprom addres for dice type
 
 uint32_t getRandomColor() {
   return strip.Color(random(brightness), random(brightness), random(brightness));
 }
 
 void loadColor(uint32_t color, int wait) {
-  for(int i=0; i<NUMPIXELS; i++) {    // For each pixel in strip...
-    strip.setPixelColor(i, color);   // Set pixel's color (in RAM)
-    strip.show();                    // Update strip to match
-    delay(wait);                      // Pause for a moment
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, color);
+    strip.show();
+    delay(wait);
   }
 }
 
 void loadImage(uint32_t *image, int wait){  // Load complete image on the ring
-  for(int i=0; i<NUMPIXELS; i++) {    
+  for(uint16_t i=0; i<strip.numPixels(); i++) {    
     strip.setPixelColor(i,image[i]);
     strip.show();
     delay(wait);
@@ -84,8 +84,8 @@ void loadImage(uint32_t *image, int wait){  // Load complete image on the ring
 }
 
 void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
-  for(int i=0; i<NUMPIXELS; i++) {
-    if(dice[num][i])                 // select dice mumber and on/off pixel texture
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    if(dice[num][i]==1)                 // select dice mumber and on/off pixel texture
       strip.setPixelColor(i,cnm);   // set number pixel color
     else
       strip.setPixelColor(i,cbg);   // set background pixel color
@@ -95,18 +95,32 @@ void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
 }
 
 void launchDice() {
-  uint32_t cbg = strip.Color(0,0,255);    // background color
-  uint32_t cnm = strip.Color(255,0,0);    // number color
-  loadColor(0,20);                         // animating clead
-  loadColor(cbg,20);                       // paint background
-  loadNumber(cbg,cnm,random(dicetype),20); // load dice number
+  loadColor(strip.Color(0,0,0),20);                         // animating clear
+  loadColor(strip.Color(0,0,255),20);                       // paint background
+  loadNumber(strip.Color(255,0,0),strip.Color(0,0,255),random(dice_type),20); // load dice number
 }
 
-void rainbow(int wait) {                // Adafruit rainbow (see library for explanation)
-  for(long firstPixelHue = 0; firstPixelHue < 3*65536; firstPixelHue += 256) {
-    for(int i=0; i<NUMPIXELS; i++) { 
-      int pixelHue = firstPixelHue + (i * 65536L / NUMPIXELS);
-      strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(pixelHue)));
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+void rainbow(uint8_t wait) {
+  uint16_t i, j;
+
+  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
+    for(i=0; i< strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
     }
     strip.show();
     delay(wait);
@@ -116,23 +130,23 @@ void rainbow(int wait) {                // Adafruit rainbow (see library for exp
 void OnClickHandler(Button2& btn) {      // onclick handler
   if(!onSuspend) {                       // debounce after sleep
     launchDice();                        // launch dice with normal click
-    sleepcount=0;                        // reset sleep counter
+    sleep_count=0;                        // reset sleep counter
   }
 }
 
 void OnLongClickHandler(Button2& btn) {           
   if (!onSuspend && debounce_count>debounce) {    // weird anti debounce issue fix
-    if(++dicetype>6)dicetype=2;                   // dice types: 2 to 6
+    if(++dice_type>6)dice_type=2;                 // dice types: 2 to 6
     loadColor(0,10);                   
-    uint32_t cbg = strip.Color(0,0,255);         // background color
-    uint32_t cnm = strip.Color(0,255,0);         // number color
+    uint32_t cbg = strip.Color(0,0,255);          // background color
+    uint32_t cnm = strip.Color(0,255,0);          // number color
     loadColor(cbg,10);
-    loadNumber(cbg,cnm,dicetype-1,30);            // load dice number
-    eeprom_write_byte(EEA_DICETYPE,dicetype);     // save in eeprom
-    sleepcount = 0;
+    loadNumber(cbg,cnm,dice_type-1,30);           // load dice number
+    eeprom_write_byte(&address_dice_type,dice_type);    // save in eeprom
+    sleep_count = 0;
   } else if (!onSuspend) {
     debounce_count++;
-    sleepcount = 0;
+    sleep_count = 0;
   }
 }
 
@@ -142,8 +156,8 @@ void OnDoubleClickHandler(Button2& btn) {         // Dice type changer
     if (brightness > 30) brightness = 10;         // max value
     strip.setBrightness(brightness);
     strip.show();
-    eeprom_write_byte(EEA_BRIGTHNESS,brightness); // save in eeprom
-    sleepcount = 0;
+    eeprom_write_byte(&address_brightness,brightness); // save in eeprom
+    sleep_count = 0;
   }
 }
 
@@ -169,7 +183,7 @@ void sleep() {
   sei();                 // Enable interrupts
  
   debounce_count = 0;    // for long click issue
-  sleepcount = 0;        // reset anim time counter
+  sleep_count = 0;        // reset anim time counter
   onSuspend = true;      // prevent button delay issue
 }
 
@@ -185,17 +199,16 @@ ISR(PCINT0_vect) { }     // This is called when the interrupt occurs, but I don'
 
 void setup() {
   debugSetup();
-  debugBlink(1);
   // initialize pseudo-random number generator with some random value
   int seed = analogRead(RNDPIN);
   // debugBlink(seed);
   randomSeed(seed);
   // initialize brightness
-  uint8_t old_brg=eeprom_read_byte(EEA_BRIGTHNESS);
+  uint8_t old_brg=eeprom_read_byte(&address_brightness);
   if(old_brg>0 && old_brg != brightness)brightness=old_brg;
   // initialize dice type
-  uint8_t old_type=eeprom_read_byte(EEA_DICETYPE);
-  if(old_type>1 && old_type<7 && old_type!=dicetype)dicetype=old_type;
+  uint8_t old_type=eeprom_read_byte(&address_dice_type);
+  if(old_type>1 && old_type<7 && old_type!=dice_type)dice_type=old_type;
   // initialize LED strip
   strip.begin();
   strip.setBrightness(brightness);
@@ -212,7 +225,8 @@ void loop() {
   buttonA->loop();                 // check multi event button
   
   if(!intro){                      // only show intro one time or with double click
-    rainbow(2);                    // fast intro animation
+    debugBlink(3);
+    rainbow(3);                    // fast intro animation
     intro=true;                    // animation intro only after reset
   }
   if(onSuspend){                   // after sleep starting with dice
@@ -223,14 +237,11 @@ void loop() {
   if(value0>60){                   // calculating if touch button was pressed
     debugBlink(1);                 // only in debuging one blink
     launchDice();                  // launch dice
-    sleepcount=0;                  // reset sleep timer
+    sleep_count=0;                  // reset sleep timer
   }
-  if(sleepcount++>sleeptime) {     // testing if sleep time was reached
+  if(sleep_count++>sleep_time) {     // testing if sleep time was reached
     debugBlink(3);                 // only in debuging 3 blinks
     loadColor(0,60);               // sleep animation
     sleep();                       // go to low power consumption
   }
-
-  strip.show();
-
 }
