@@ -57,7 +57,7 @@ uint8_t brightness = 25;  // Loaded from eeprom and changet it via key
 uint16_t dice[6][12] = {                   // Dice texture numbers
   { 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1},   // number 1
   { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // number 2
-  { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0},   // number 3
+  { 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},   // number 3
   { 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0},   // number 4
   { 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0},   // number 5
   { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // number 6
