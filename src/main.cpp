@@ -55,7 +55,7 @@ uint8_t dice_type = 6;
 uint8_t brightness = 25;  // Loaded from eeprom and changet it via key
 
 uint16_t dice[6][12] = {                   // Dice texture numbers
-  { 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1},   // number 1
+  { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},   // number 1
   { 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},   // number 2
   { 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},   // number 3
   { 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0},   // number 4
@@ -98,7 +98,7 @@ void loadNumber(uint32_t cbg, uint32_t cnm, int num, int wait) {
 void launchDice() {
   loadColor(strip.Color(0,0,0),20);                         // animating clear
   loadColor(strip.Color(0,0,255),20);                       // paint background
-  loadNumber(strip.Color(255,0,0),strip.Color(0,0,255),random(dice_type),20); // load dice number
+  loadNumber(strip.Color(0,0,255),strip.Color(255,0,0),random(dice_type),20); // load dice number
 }
 
 // Input a value 0 to 255 to get a color value.
