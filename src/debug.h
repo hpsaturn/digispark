@@ -1,7 +1,7 @@
 /***********************************
  * Enable debug mode over Blink LED
  **********************************/
-#define DEBUG 0     // Set to 1 to enable, 0 to disable
+#define DEBUG 1     // Set to 1 to enable, 0 to disable
 
 
 #if DEBUG

@@ -27,7 +27,6 @@
 #include <avr/eeprom.h>
 #include "debug.h"
 
-
 #define NUMPIXELS 12
 #define PIN 0
 
@@ -62,7 +61,6 @@ uint16_t dice[6][12] = {                   // Dice texture numbers
   { 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0},   // number 5
   { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}    // number 6
 };
-
 
 uint32_t getRandomColor() {
   return strip.Color(random(brightness), random(brightness), random(brightness));
@@ -238,9 +236,9 @@ void loop() {
   if(value0>60){                   // calculating if touch button was pressed
     debugBlink(1);                 // only in debuging one blink
     launchDice();                  // launch dice
-    sleep_count=0;                  // reset sleep timer
+    sleep_count=0;                 // reset sleep timer
   }
-  if(sleep_count++>sleep_time) {     // testing if sleep time was reached
+  if(sleep_count++>sleep_time) {   // testing if sleep time was reached
     debugBlink(3);                 // only in debuging 3 blinks
     loadColor(0,60);               // sleep animation
     sleep();                       // go to low power consumption
